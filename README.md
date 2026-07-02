@@ -1,6 +1,6 @@
 # Local SLM Data Cleaner
 
-Fine-tune a small language model (SLM) )on 100% synthetic data to clean messy SAP-style
+Fine-tune a small language model (SLM) on 100% synthetic data to clean messy SAP-style
 master data, and run the whole thing locally on a Mac. No client data, no cloud,
 no GPU rental. The intelligence lives in a model you own, and the only thing it
 costs to run is the electricity!
