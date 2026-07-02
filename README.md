@@ -1,9 +1,9 @@
 # Local SLM Data Cleaner
 
-Fine-tune a tiny language model on 100% synthetic data to clean messy SAP-style
+Fine-tune a small language model (SLM) )on 100% synthetic data to clean messy SAP-style
 master data, and run the whole thing locally on a Mac. No client data, no cloud,
 no GPU rental. The intelligence lives in a model you own, and the only thing it
-costs to run is electricity!
+costs to run is the electricity!
 
 What does it accomplish? It takes a messy master-data record (vendor, customer,
 material, cost center, GL account) and normalizes it to a documented house
@@ -25,7 +25,7 @@ phone, date and amount formats. Missing values become `null`.
 
 ---
 
-## Why this matters
+## Why
 
 If you work with sensitive master data, and especially under GDPR / DSGVO,
 sending records to a third-party cloud LLM is often not allowed in the first
@@ -69,7 +69,7 @@ Beratung und Umsetzung: [mbitai.com](https://www.mbitai.com).
 
 ---
 
-## The big idea (in one picture)
+## The main idea
 
 Most data cleaning is written by hand: someone codes a rule for every case they
 can think of. This project turns that around. We write the rules once, use them to
@@ -129,26 +129,26 @@ choose "About This Mac", and look at the Chip line. "Apple M1" or later means yo
 are good. If it says "Intel", the training step will not work, because it relies
 on Apple's MLX framework.
 
-### A 30-second glossary (so the commands make sense)
+### A 30-second glossary explanation
 
-| Term | Plain meaning |
-|------|---------------|
-| LLM / model | The "brain": a file that turns input text into output text. |
-| Base / instruct model | We use `Qwen3-0.6B`, a small model (0.6 billion parameters). |
-| Parameters | The model's internal numbers. "0.6B" means 600 million of them. More usually means smarter but bigger. |
-| Fine-tune | Teach an existing model your specific task by showing it examples. |
-| LoRA | A cheap, fast way to fine-tune that runs on a laptop. |
-| Adapter | The small file LoRA produces: what the model learned, kept separate from the model. |
-| Synthetic data | Fake but realistic examples we generate ourselves, no real data. |
-| Algorithm | Our rule-based answer key that says what the clean output should be. |
-| Loss | The number training prints. Roughly "how wrong the model still is". Down is good. |
-| Quantization | Shrinking a model by storing its numbers at lower precision, so it needs less memory. |
-| GGUF | The file format that lets `llama.cpp` run a model efficiently. |
-| MLX | Apple's tool that does the training on your Mac's chip. |
-| llama.cpp | The tool that runs (serves) the finished model. |
-| Server | A program that loads the model once, keeps it in memory, and answers requests. |
-| Hugging Face | The site models are downloaded from. Think "GitHub for models". |
-| Terminal | The black text app where you type commands (see Step 0). |
+| Term                  | Plain meaning                                                                                          |
+| --------------------- | ------------------------------------------------------------------------------------------------------ |
+| LLM / model           | The "brain": a file that turns input text into output text.                                            |
+| Base / instruct model | We use`Qwen3-0.6B`, a small model (0.6 billion parameters).                                            |
+| Parameters            | The model's internal numbers. "0.6B" means 600 million of them. More usually means smarter but bigger. |
+| Fine-tune             | Teach an existing model your specific task by showing it examples.                                     |
+| LoRA                  | A cheap, fast way to fine-tune that runs on a laptop.                                                  |
+| Adapter               | The small file LoRA produces: what the model learned, kept separate from the model.                    |
+| Synthetic data        | Fake but realistic examples we generate ourselves, no real data.                                       |
+| Algorithm             | Our rule-based answer key that says what the clean output should be.                                   |
+| Loss                  | The number training prints. Roughly "how wrong the model still is". Down is good.                      |
+| Quantization          | Shrinking a model by storing its numbers at lower precision, so it needs less memory.                  |
+| GGUF                  | The file format that lets`llama.cpp` run a model efficiently.                                          |
+| MLX                   | Apple's tool that does the training on your Mac's chip.                                                |
+| llama.cpp             | The tool that runs (serves) the finished model.                                                        |
+| Server                | A program that loads the model once, keeps it in memory, and answers requests.                         |
+| Hugging Face          | The site models are downloaded from. Think "GitHub for models".                                        |
+| Terminal              | The black text app where you type commands (see Step 0).                                               |
 
 ---
 
@@ -301,7 +301,7 @@ This is not the model being tested (there is no model involved yet). It is a
 self-consistency check: the answer key agrees with itself, so the exercises we
 are about to train on have correct solutions.
 
-## Step 6. Measure the model BEFORE training (your "before" score)
+## Step 6. Measure the model BEFORE training
 
 This shows how the untrained model does, which is what lets you prove training
 helped later.
@@ -402,7 +402,7 @@ quantization from the glossary: storing the model's numbers with less precision
 to halve the size, at a quality cost too small to matter here. When both commands
 have finished you can see the files with `ls *.gguf`.
 
-## Step 9. Measure the model AFTER training (your "after" score)
+## Step 9. Measure the model AFTER training
 
 In your first Terminal, serve your fine-tuned model. It keeps running:
 
@@ -493,7 +493,7 @@ to messiness the rules do not explicitly cover, like novel typos, unseen aliases
 and fuzzy matches, and it does the whole record in one pass. The eval measures
 exactly how much it adds beyond the rules.
 
-### What fine-tuning actually does
+### What fine-tuning does
 
 The model starts as a general instruct model that can hold a conversation about
 anything. Fine-tuning shows it thousands of messy-to-clean pairs and gently nudges
@@ -542,9 +542,9 @@ grammar-constrained decoding), see [docs/concepts.md](docs/concepts.md).
 
 ## Roadmap
 
-- v1: normalize a record to the convention (this repo).
-- v2: duplicate detection and golden-record merge.
-- v3: map arbitrary messy nested JSON onto the target schema.
+- normalize a record to the convention (this repo).
+- duplicate detection and golden-record merge.
+- map arbitrary messy nested JSON onto the target schema.
 
 ## About
 
