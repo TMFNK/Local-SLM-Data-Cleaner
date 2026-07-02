@@ -1,0 +1,15 @@
+# generated data + training artifacts
+data/*.jsonl
+adapters/
+fused/
+*.gguf
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+
+# os
+.DS_Store
