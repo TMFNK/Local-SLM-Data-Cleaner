@@ -1,15 +1,18 @@
 # Local SLM Data Cleaner
 
-Fine-tune a small language model (SLM) on 100% synthetic data to clean messy SAP-style
-master data, and run the whole thing locally on a Mac. No client data, no cloud,
-no GPU rental. The intelligence lives in a model you own, and the only thing it
-costs to run is the electricity!
+[![Enterprise version](https://img.shields.io/badge/Enterprise_version-for_production-1f6feb?style=for-the-badge)](https://github.com/TMFNK/Enterprise-SLM-Data-Cleaner)
+[![mbitai.com](https://img.shields.io/badge/Beratung_%26_Umsetzung-mbitai.com-2ea44f?style=for-the-badge)](https://www.mbitai.com)
 
 > **This repo is the free demo.** The production version is
 > [Enterprise-SLM-Data-Cleaner](https://github.com/TMFNK/Enterprise-SLM-Data-Cleaner):
 > client-specific convention files, an append-only audit trail with manual
 > review queue, air-gapped container delivery, CI quality gates, and a
 > swappable (also European) base model. Details one section down.
+
+Fine-tune a small language model (SLM) on 100% synthetic data to clean messy SAP-style
+master data, and run the whole thing locally on a Mac. No client data, no cloud,
+no GPU rental. The intelligence lives in a model you own, and the only thing it
+costs to run is the electricity!
 
 What does it accomplish? It takes a dirty master-data record (vendor, customer,
 material, cost center, GL account) and normalizes it to a clean and documented
