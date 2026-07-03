@@ -553,9 +553,8 @@ German businesses, with a focus on practical, privacy-first machine learning tha
 runs where your data already lives. This repo is part of that portfolio and a
 worked example: local, tiny, open, and GDPR-friendly by design.
 
-Want to apply this to your own master data, migration or data-quality work? Get in
-touch at [www.mbitai.com](https://www.mbitai.com).
-
 ## License
 
 AGPL-3.0 (see [LICENSE](LICENSE)). All sample data is synthetic and invented.
+
+For commercial licensing without AGPL obligations, or help applying this to your own master data, contact [www.mbitai.com](https://www.mbitai.com).
