@@ -69,10 +69,6 @@ Beratung und Umsetzung: [mbitai.com](https://www.mbitai.com).
 
 ---
 
-🥷 Here's the section, written to match the origin README's voice. Suggested placement: right after the "## Für deutsche Unternehmen, kurz gefasst" section (so the demo→enterprise handoff happens before readers dive into the tutorial), but it also works just above "## Roadmap".
-
----
-
 ## The enterprise version
 
 This repo is the DEMO version: one laptop in the afternoon, and you can watch the whole
