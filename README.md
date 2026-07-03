@@ -116,8 +116,7 @@ task (here, our rule-based algorithm) produces labelled examples, and a small
 "student" model learns from them. The student ends up smaller, faster, and more
 flexible than the teacher.
 
-```mermaid
-flowchart TD
+```text
    convention_spec.py            the rules, our "teacher"
         |
         |  generate messy records and label the clean answer
