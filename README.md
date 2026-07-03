@@ -69,6 +69,44 @@ Beratung und Umsetzung: [mbitai.com](https://www.mbitai.com).
 
 ---
 
+🥷 Here's the section, written to match the origin README's voice. Suggested placement: right after the "## Für deutsche Unternehmen, kurz gefasst" section (so the demo→enterprise handoff happens before readers dive into the tutorial), but it also works just above "## Roadmap".
+
+---
+
+## The enterprise version
+
+This repo is the DEMO version: one laptop in the afternoon, and you can watch the whole
+idea work end-to-end. For production use there is a bigger sibling,
+[Enterprise-SLM-Data-Cleaner](https://github.com/TMFNK/Enterprise-SLM-Data-Cleaner),
+which takes the same proven core and adds the layers that a company actually needs
+before trusting an AI with its master data:
+
+- **Client-specific conventions as files.** The house standard lives in an
+  editable YAML spec per client. A data steward changes the rules, nobody
+  rewrites software.
+- **An append-only audit trail.** Every cleaning decision is recorded: input,
+  output, every single change, confidence, and the exact version (hash) of
+  both the model weights and the convention file. Uncertain records go to a
+  manual review queue, never silently accepted.
+- **Air-gapped delivery.** Everything ships as one container that runs with
+  its network stack removed (`--network none`) and refuses to start if the
+  model weights do not match the fingerprint pinned in version control.
+- **A quality gate on every change.** A pinned adversarial test suite (is
+  "Bavaria" wrongly "corrected" to a country? is "mbH" recognized as GmbH?)
+  blocks any code or convention change that alters documented behavior.
+- **A swappable base model.** The stack is model-agnostic! Companies that
+  prefer not to run a Chinese base model can use a European one (Teuken-7B
+  from Fraunhofer, EuroLLM from an EU project) or a US model under MIT
+  license, with the same pipeline and the same eval gate.
+
+Kurz auf Deutsch: die Enterprise-Version ergänzt dieses Demo-Projekt um
+mandantenfähige Konventionsdateien, ein unveränderliches Audit-Protokoll mit
+manueller Prüfschlange, einen komplett vom Netz getrennten Container und ein
+austauschbares Basismodell (auf Wunsch europäisch). Beratung und Umsetzung:
+[mbitai.com](https://www.mbitai.com).
+
+---
+
 ## The main idea
 
 Most data cleaning is written by hand: someone codes a rule for every case they
@@ -82,7 +120,8 @@ task (here, our rule-based algorithm) produces labelled examples, and a small
 "student" model learns from them. The student ends up smaller, faster, and more
 flexible than the teacher.
 
-```
+```mermaid
+flowchart TD
    convention_spec.py            the rules, our "teacher"
         |
         |  generate messy records and label the clean answer
@@ -267,7 +306,7 @@ VAT number is invented.
 
 The output looks like this (the split is 80% train, 10% valid, 10% test):
 
-```
+```text
   test :   100 -> data/test.jsonl
   valid:   100 -> data/valid.jsonl
   train:   800 -> data/train.jsonl
@@ -289,7 +328,7 @@ You should see numbers around 100%. This scores the held-out test split against
 the rule-based answer key (every example was already checked once at generation
 time), so if it says 100% the data is good:
 
-```
+```text
 mode           : algorithm (sanity)
 examples       : 100
 valid JSON     : 100.0%
@@ -441,7 +480,7 @@ It sends one messy record to your model and prints the cleaned JSON.
 Two parts of the output are worth a look. The first line says
 `source=model needs_review=False`: the model's answer passed all the rule checks,
 so no human needs to look at it. And inside the JSON, the `changes` list names
-every single edit the model made (`"country: 'Germany' -> 'DE'"` and so on), so
+every single edit the model made (`"country: 'Germany' to 'DE'"` and so on), so
 a data steward can audit what happened to the record at a glance.
 
 This demo is also the shape of real usage: your own code would call the model
@@ -521,7 +560,7 @@ messy long tail the rules never anticipated.
 
 ### Project layout
 
-```
+```text
 convention_spec.py   the convention + deterministic algorithm (single source of truth)
 synth/generate.py    clean-record generator + corruptor -> train/valid/test JSONL
 train/               notes on the MLX fine-tuning commands
