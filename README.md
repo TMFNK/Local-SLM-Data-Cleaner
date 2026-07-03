@@ -5,11 +5,17 @@ master data, and run the whole thing locally on a Mac. No client data, no cloud,
 no GPU rental. The intelligence lives in a model you own, and the only thing it
 costs to run is the electricity!
 
-What does it accomplish? It takes a messy master-data record (vendor, customer,
-material, cost center, GL account) and normalizes it to a documented house
-convention. That means trimmed text and fixed casing, ISO country and currency
-codes, controlled legal-form, unit and status codes, and canonical VAT, IBAN,
-phone, date and amount formats. Missing values become `null`.
+> **This repo is the free demo.** The production version is
+> [Enterprise-SLM-Data-Cleaner](https://github.com/TMFNK/Enterprise-SLM-Data-Cleaner):
+> client-specific convention files, an append-only audit trail with manual
+> review queue, air-gapped container delivery, CI quality gates, and a
+> swappable (also European) base model. Details one section down.
+
+What does it accomplish? It takes a dirty master-data record (vendor, customer,
+material, cost center, GL account) and normalizes it to a clean and documented
+output. That means trimmed text and fixed casing, ISO country and currency
+codes mappings, controlled legal-form, unit and status codes, and canonical VAT, IBAN,
+phone, date and amount formats. Missing values alwaysbecome `null`.
 
 ```jsonc
 // in
@@ -22,6 +28,34 @@ phone, date and amount formats. Missing values become `null`.
   "currency": "EUR", "status": "active", "validFrom": "2024-03-01", "amount": 1234.56,
   "confidence": 1.0, "changes": ["country: 'Germany' -> 'DE'", ...] }
 ```
+
+---
+
+## The enterprise version
+
+This repo is the DEMO version: one laptop in the afternoon, and you can watch the whole
+idea work end-to-end. For production use there is a bigger sibling,
+[Enterprise-SLM-Data-Cleaner](https://github.com/TMFNK/Enterprise-SLM-Data-Cleaner),
+which takes the same proven core and adds the layers that a company actually needs
+before trusting an AI with its master data:
+
+- **Client-specific conventions as files.** The house standard lives in an
+  editable YAML spec per client. A data steward changes the rules, nobody
+  rewrites software.
+- **An append-only audit trail.** Every cleaning decision is recorded: input,
+  output, every single change, confidence, and the exact version (hash) of
+  both the model weights and the convention file. Uncertain records go to a
+  manual review queue, never silently accepted.
+- **Air-gapped delivery.** Everything ships as one container that runs with
+  its network stack removed (`--network none`) and refuses to start if the
+  model weights do not match the fingerprint pinned in version control.
+- **A quality gate on every change.** A pinned adversarial test suite (is
+  "Bavaria" wrongly "corrected" to a country? is "mbH" recognized as GmbH?)
+  blocks any code or convention change that alters documented behavior.
+- **A swappable base model.** The stack is model-agnostic! Companies that
+  prefer not to run a Chinese base model can use a European one (Teuken-7B
+  from Fraunhofer, EuroLLM from an EU project) or a US model under MIT
+  license, with the same pipeline and the same eval gate.
 
 ---
 
@@ -65,41 +99,14 @@ bestehende Pipelines (SQL, dbt, PySpark), indem es genau die unsauberen Sonderf�
 abfängt, die regelbasierter Code regelmäßig übersieht. Datenschutz und
 Datensouveränität sind hier der Standard, nicht die Ausnahme.
 
+Für den Produktiveinsatz gibt es die
+[Enterprise-Version](https://github.com/TMFNK/Enterprise-SLM-Data-Cleaner):
+sie ergänzt dieses Demo-Projekt um mandantenfähige Konventionsdateien, ein
+unveränderliches Audit-Protokoll mit manueller Prüfschlange, einen komplett
+vom Netz getrennten Container und ein austauschbares Basismodell (auf Wunsch
+europäisch).
+
 Beratung und Umsetzung: [mbitai.com](https://www.mbitai.com).
-
----
-
-## The enterprise version
-
-This repo is the DEMO version: one laptop in the afternoon, and you can watch the whole
-idea work end-to-end. For production use there is a bigger sibling,
-[Enterprise-SLM-Data-Cleaner](https://github.com/TMFNK/Enterprise-SLM-Data-Cleaner),
-which takes the same proven core and adds the layers that a company actually needs
-before trusting an AI with its master data:
-
-- **Client-specific conventions as files.** The house standard lives in an
-  editable YAML spec per client. A data steward changes the rules, nobody
-  rewrites software.
-- **An append-only audit trail.** Every cleaning decision is recorded: input,
-  output, every single change, confidence, and the exact version (hash) of
-  both the model weights and the convention file. Uncertain records go to a
-  manual review queue, never silently accepted.
-- **Air-gapped delivery.** Everything ships as one container that runs with
-  its network stack removed (`--network none`) and refuses to start if the
-  model weights do not match the fingerprint pinned in version control.
-- **A quality gate on every change.** A pinned adversarial test suite (is
-  "Bavaria" wrongly "corrected" to a country? is "mbH" recognized as GmbH?)
-  blocks any code or convention change that alters documented behavior.
-- **A swappable base model.** The stack is model-agnostic! Companies that
-  prefer not to run a Chinese base model can use a European one (Teuken-7B
-  from Fraunhofer, EuroLLM from an EU project) or a US model under MIT
-  license, with the same pipeline and the same eval gate.
-
-Kurz auf Deutsch: die Enterprise-Version ergänzt dieses Demo-Projekt um
-mandantenfähige Konventionsdateien, ein unveränderliches Audit-Protokoll mit
-manueller Prüfschlange, einen komplett vom Netz getrennten Container und ein
-austauschbares Basismodell (auf Wunsch europäisch). Beratung und Umsetzung:
-[mbitai.com](https://www.mbitai.com).
 
 ---
 
