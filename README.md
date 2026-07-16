@@ -56,9 +56,10 @@ before trusting an AI with its master data:
   "Bavaria" wrongly "corrected" to a country? is "mbH" recognized as GmbH?)
   blocks any code or convention change that alters documented behavior.
 - **A swappable base model.** The stack is model-agnostic! Companies that
-  prefer not to run a Chinese base model can use a European one (Teuken-7B
-  from Fraunhofer, EuroLLM from an EU project) or a US model under MIT
-  license, with the same pipeline and the same eval gate.
+  prefer not to run a Chinese base model can use a European one (Ministral-8B
+  or Mistral Nemo from Mistral AI in France, Teuken-7B from Fraunhofer,
+  EuroLLM from an EU project) or a US model under MIT license, with the same
+  pipeline and the same eval gate.
 
 ---
 
@@ -107,7 +108,7 @@ Für den Produktiveinsatz gibt es die
 sie ergänzt dieses Demo-Projekt um mandantenfähige Konventionsdateien, ein
 unveränderliches Audit-Protokoll mit manueller Prüfschlange, einen komplett
 vom Netz getrennten Container und ein austauschbares Basismodell (auf Wunsch
-europäisch).
+europäisch, z. B. Ministral-8B oder Mistral Nemo von Mistral AI).
 
 Beratung und Umsetzung: [mbitai.com](https://www.mbitai.com).
 
@@ -441,7 +442,9 @@ In plain terms: after `fuse` you have a `fused/` folder holding a complete model
 with your training baked in. `make gguf` then does two conversions in a row.
 First it repacks that folder into a single `.gguf` file (large, roughly the size
 of the original download), then it compresses it into the file you will actually
-use, `qwen3-0.6b-cleaner-q8_0.gguf` (around 600 MB). The compression step is the
+use, `<ALIAS>-<quant>.gguf` (for the default preset:
+`qwen3-0.6b-cleaner-q8_0.gguf`, around 600 MB). Run `make list-models` to see
+which preset is active and what filenames it produces. The compression step is the
 quantization from the glossary: storing the model's numbers with less precision
 to halve the size, at a quality cost too small to matter here. When both commands
 have finished you can see the files with `ls *.gguf`.
@@ -454,9 +457,9 @@ In your first Terminal, serve your fine-tuned model. It keeps running:
 make serve
 ```
 
-This is the same kind of server as in Step 6, but now it loads your own file,
-the fine-tuned `qwen3-0.6b-cleaner-q8_0.gguf`, instead of downloading the stock
-model. Nothing is downloaded this time; it should print its "listening" line
+This is the same kind of server as in Step 6, but now it loads your own
+fine-tuned GGUF (for the default preset: `qwen3-0.6b-cleaner-q8_0.gguf`) instead
+of downloading the stock model. Nothing is downloaded this time; it should print its "listening" line
 within seconds.
 
 In the second Terminal, score it:
@@ -576,10 +579,43 @@ Makefile             every step above, as `make <command>`
 
 ### Model details
 
-We use Qwen3-0.6B (instruct), LoRA fine-tuned with Apple MLX, exported to GGUF and
-served by [llama.cpp](https://github.com/ggml-org/llama.cpp). It runs in about 1 GB
-on an 8 GB Mac. The output is grammar-constrained to the record's JSON schema, so
-it is always valid JSON.
+The default preset is **Qwen3-0.6B** (instruct), LoRA fine-tuned with Apple MLX,
+exported to GGUF and served by [llama.cpp](https://github.com/ggml-org/llama.cpp).
+It runs in about 1 GB on an 8 GB Mac. The output is grammar-constrained to the
+record's JSON schema, so it is always valid JSON.
+
+#### Swapping models
+
+The pipeline supports other small models via `MODEL_PRESET`. Run `make clean`
+before switching so adapters and GGUF files from the previous model are not reused:
+
+```bash
+make list-models        # show available model presets
+make MODEL_PRESET=minicpm5-1b clean model data train fuse gguf serve eval
+```
+
+Or set it once for the session:
+
+```bash
+export MODEL_PRESET=minicpm5-1b
+make clean model data train fuse gguf serve eval
+```
+
+| Preset         | Base model   | Size | GGUF repo (baseline)                               | Quant    | ALIAS                  |
+| -------------- | ------------ | ---- | -------------------------------------------------- | -------- | ---------------------- |
+| `qwen3-0.6b`   | Qwen3-0.6B   | 0.6B | `Qwen/Qwen3-0.6B-GGUF`                             | `Q8_0`   | `qwen3-0.6b-cleaner`   |
+| `qwen3.5-0.8b` | Qwen3.5-0.8B | 0.8B | `unsloth/Qwen3.5-0.8B-GGUF` (community)           | `Q8_0`   | `qwen3.5-0.8b-cleaner` |
+| `minicpm5-1b`  | MiniCPM5-1B  | 1B   | `openbmb/MiniCPM5-1B-GGUF`                         | `Q4_K_M` | `minicpm5-1b-cleaner`  |
+
+Each preset sets `MODEL`, `GGUF_HF`, `GGUF_QUANT`, and `ALIAS` together. Override
+any individually, for example:
+
+```bash
+make model train fuse gguf MODEL_PRESET=minicpm5-1b GGUF_QUANT=Q8_0
+```
+
+Each architecture must be supported by MLX and llama.cpp. Qwen, Gemma, Phi,
+Llama-family, SmolLM, and MiniCPM are supported today.
 
 For the why behind all of this (tiny models, base vs instruct, LoRA, quantization,
 grammar-constrained decoding), see [docs/concepts.md](docs/concepts.md).

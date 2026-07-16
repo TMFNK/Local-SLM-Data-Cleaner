@@ -31,7 +31,6 @@ except ImportError:
     requests = None
 
 MODEL_URL = "http://localhost:8080/v1/chat/completions"   # port set via --port
-MODEL_NAME = "qwen3-0.6b-cleaner"
 
 _SERVER_HINT = """
 Cannot reach the model server at http://localhost:{port}.
@@ -56,11 +55,11 @@ def require_server(port: int):
         sys.exit(_SERVER_HINT.format(port=port))
 
 
-def _call_model(record: dict) -> dict | None:
+def _call_model(record: dict, model_name: str = "qwen3-0.6b-cleaner") -> dict | None:
     if requests is None:
         raise RuntimeError("`requests` not installed; --live needs it")
     payload = {
-        "model": MODEL_NAME,
+        "model": model_name,
         "messages": [
             {"role": "system", "content": spec.system_prompt("mdm_record")},
             {"role": "user", "content": json.dumps(record, ensure_ascii=False)},
@@ -80,10 +79,11 @@ def _call_model(record: dict) -> dict | None:
         return None
 
 
-def clean_record(record: dict, use_model: bool = True) -> dict:
+def clean_record(record: dict, use_model: bool = True,
+                 model_name: str = "qwen3-0.6b-cleaner") -> dict:
     """Return {result, source, needs_review, violations}."""
     if use_model:
-        obj = _call_model(record)
+        obj = _call_model(record, model_name=model_name)
         violations = rule_violations("mdm_record", obj) if obj else ["no valid JSON"]
         if obj and not violations:
             return {"result": obj, "source": "model", "needs_review": False, "violations": []}
@@ -103,6 +103,8 @@ if __name__ == "__main__":
     ap.add_argument("--live", action="store_true", help="use the served fine-tuned model")
     ap.add_argument("--port", type=int, default=8080,
                     help="port of the llama.cpp server (match make serve PORT=...)")
+    ap.add_argument("--model-name", default="qwen3-0.6b-cleaner",
+                    help="model name sent to llama.cpp (match make ALIAS=...)")
     args = ap.parse_args()
     MODEL_URL = f"http://localhost:{args.port}/v1/chat/completions"
     if args.live:
@@ -114,7 +116,7 @@ if __name__ == "__main__":
             "currency": "€", "baseUnit": "pcs", "status": "aktiv",
             "validFrom": "01.03.2024", "amount": "1.234,56"}
 
-    out = clean_record(demo, use_model=args.live)
+    out = clean_record(demo, use_model=args.live, model_name=args.model_name)
     print(f"source={out['source']} needs_review={out['needs_review']}")
     if out["violations"]:
         print("model violations:", out["violations"])

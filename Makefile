@@ -13,43 +13,83 @@
 # Keep values on their own lines with no inline comments. A trailing-space
 # comment would become part of the value and break commands like `-hf repo:quant`.
 #
-#   MODEL       base model to fine-tune (auto-downloads)
-#   GGUF_HF     stock GGUF repo for the zero-shot baseline
-#   GGUF_QUANT  quant level to download/build (Q8_0, Q6_K, ...)
-#   N           number of synthetic examples
-#   SEED        random seed (same seed = same data)
-#   ITERS       training steps
-#   BATCH       training batch size
-#   LAYERS      how many layers LoRA touches
-#   PORT        local server port
-#   ALIAS       model name the eval/clean scripts look for
-#   LLAMA_CPP   path to a llama.cpp source checkout (only for `make gguf`)
-MODEL      ?= Qwen/Qwen3-0.6B
-GGUF_HF    ?= Qwen/Qwen3-0.6B-GGUF
-GGUF_QUANT ?= Q8_0
+#   MODEL_PRESET  model family shortcut: qwen3-0.6b, qwen3.5-0.8b, minicpm5-1b
+#   MODEL         base model to fine-tune (auto-downloads)
+#   GGUF_HF       stock GGUF repo for the zero-shot baseline
+#   GGUF_QUANT    quant level to download/build (Q8_0, Q4_K_M, ...)
+#   N             number of synthetic examples
+#   SEED          random seed (same seed = same data)
+#   ITERS         training steps
+#   BATCH         training batch size
+#   LAYERS        how many layers LoRA touches
+#   PORT          local server port
+#   ALIAS         model name the eval/clean scripts look for
+#   LLAMA_CPP     path to a llama.cpp source checkout (only for `make gguf`)
+MODEL_PRESET ?= qwen3-0.6b
+
+# Model presets — set MODEL_PRESET to quickly switch between supported models.
+# Each preset sets MODEL, GGUF_HF, GGUF_QUANT, and ALIAS. Override any
+# individually on the command line (e.g. `make train MODEL=...`).
+# Switching presets? Run `make clean` first so adapters/GGUF from the old model
+# are not reused.
+ifeq ($(MODEL_PRESET),qwen3-0.6b)
+  MODEL      ?= Qwen/Qwen3-0.6B
+  GGUF_HF    ?= Qwen/Qwen3-0.6B-GGUF
+  GGUF_QUANT ?= Q8_0
+  ALIAS      ?= qwen3-0.6b-cleaner
+else ifeq ($(MODEL_PRESET),qwen3.5-0.8b)
+  MODEL      ?= Qwen/Qwen3.5-0.8B
+  GGUF_HF    ?= unsloth/Qwen3.5-0.8B-GGUF
+  GGUF_QUANT ?= Q8_0
+  ALIAS      ?= qwen3.5-0.8b-cleaner
+else ifeq ($(MODEL_PRESET),minicpm5-1b)
+  MODEL      ?= openbmb/MiniCPM5-1B
+  GGUF_HF    ?= openbmb/MiniCPM5-1B-GGUF
+  GGUF_QUANT ?= Q4_K_M
+  ALIAS      ?= minicpm5-1b-cleaner
+else
+  $(error Unknown MODEL_PRESET '$(MODEL_PRESET)'. Run 'make list-models'.)
+endif
+
 N          ?= 1000
 SEED       ?= 0
 ITERS      ?= 1000
 BATCH      ?= 4
 LAYERS     ?= 8
 PORT       ?= 8080
-ALIAS      ?= qwen3-0.6b-cleaner
 DATA       ?= data
 ADAPTERS   ?= adapters
 FUSED      ?= fused
 GGUF       ?= $(ALIAS).gguf
-QGGUF      ?= $(ALIAS)-q8_0.gguf
+# GGUF quant file uses lowercase version of GGUF_QUANT in its name.
+# E.g. Q8_0 -> -q8_0, Q4_K_M -> -q4_k_m.
+QGGUF_SUFFIX = $(shell echo $(GGUF_QUANT) | tr 'A-Z' 'a-z')
+QGGUF      ?= $(ALIAS)-$(QGGUF_SUFFIX).gguf
 LLAMA_CPP  ?= ../llama.cpp
 PY         ?= python3
 
 .DEFAULT_GOAL := help
-.PHONY: help setup model data sanity baseline-serve baseline train fuse gguf \
+.PHONY: help list-models setup model data sanity baseline-serve baseline train fuse gguf \
         serve eval demo all clean distclean
 
 help:  ## show this list of commands
 	@echo "Local SLM Data Cleaner: commands (run them in this order):"
+	@echo ""
+	@echo "Model preset: $(MODEL_PRESET)  (run 'make list-models' for options)"
+	@echo ""
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
 	  | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
+
+list-models:  ## show available model presets
+	@echo "Available MODEL_PRESET values:"
+	@echo ""
+	@echo "  qwen3-0.6b     Qwen3-0.6B  (default) — 600M params, ~1 GB, Apache-2.0"
+	@echo "  qwen3.5-0.8b   Qwen3.5-0.8B          — 800M params, ~1.5 GB, Apache-2.0"
+	@echo "  minicpm5-1b    MiniCPM5-1B           — 1B params, SOTA in class, Apache-2.0"
+	@echo ""
+	@echo "Usage:  make MODEL_PRESET=minicpm5-1b <command>"
+	@echo "Set it once:  export MODEL_PRESET=minicpm5-1b"
+	@echo "Switch preset:  make clean  (drops adapters/GGUF from the previous model)"
 
 # --- STEP 3: install the tools --------------------------------------------- #
 setup:  ## STEP 3: install Python libraries + the trainer (mlx-lm)
@@ -63,8 +103,9 @@ setup:  ## STEP 3: install Python libraries + the trainer (mlx-lm)
 	@echo ">> Done. Next: make model"
 
 # --- STEP 4: download the model FRESH -------------------------------------- #
-model:  ## STEP 4: download the base model (Qwen3-0.6B) from Hugging Face
-	@echo ">> Downloading $(MODEL) (~1.2 GB, first time only, no login needed)..."
+model:  ## STEP 4: download the base model from Hugging Face
+	@echo ">> Model preset: $(MODEL_PRESET)"
+	@echo ">> Downloading $(MODEL) (first time only, no login needed)..."
 	@echo ">> It caches in ~/.cache/huggingface so later steps are instant."
 	$(PY) -c "from mlx_lm import load; load('$(MODEL)'); print('model ready')"
 	@echo ">> Done. Next: make data"
@@ -88,7 +129,7 @@ baseline-serve:  ## STEP 6a: serve the STOCK model (downloads it fresh), keep ru
 
 baseline:  ## STEP 6b: score the stock model (run in the 2nd terminal)
 	@echo ">> Scoring the untrained model (this is your 'before' score)..."
-	$(PY) eval/evaluate.py --data $(DATA)/test.jsonl --live --port $(PORT)
+	$(PY) eval/evaluate.py --data $(DATA)/test.jsonl --live --port $(PORT) --model-name $(ALIAS)
 
 # --- STEP 7: fine-tune ------------------------------------------------------ #
 train:  ## STEP 7: fine-tune the model on your data (takes a while)
@@ -119,10 +160,10 @@ serve:  ## STEP 9a: serve YOUR fine-tuned model, keep running
 
 eval:  ## STEP 9b: score your fine-tuned model (compare to the baseline)
 	@echo ">> Scoring your fine-tuned model (this is your 'after' score)..."
-	$(PY) eval/evaluate.py --data $(DATA)/test.jsonl --live --port $(PORT)
+	$(PY) eval/evaluate.py --data $(DATA)/test.jsonl --live --port $(PORT) --model-name $(ALIAS)
 
 demo:  ## STEP 10: clean one messy record with your model
-	$(PY) clean.py --live --port $(PORT)
+	$(PY) clean.py --live --port $(PORT) --model-name $(ALIAS)
 
 all: data sanity train fuse gguf  ## do steps 5, 7 and 8 in one go (no serving)
 	@echo ">> Built $(QGGUF). Now run 'make serve', then 'make eval' in a 2nd terminal."
