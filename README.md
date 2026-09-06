@@ -637,4 +637,6 @@ worked example: local, tiny, open, and GDPR-friendly by design.
 
 AGPL-3.0 (see [LICENSE](LICENSE)). All sample data is synthetic and invented.
 
+SAP is a registered trademark of SAP SE. This project is not affiliated with or approved by SAP SE; SAP names appear as descriptive references only. See NOTICE.
+
 For commercial licensing without AGPL obligations, or help applying this to your own master data, contact [www.mbitai.com](https://www.mbitai.com).
