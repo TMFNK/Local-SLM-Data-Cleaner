@@ -7,7 +7,7 @@
 > [Enterprise-SLM-Data-Cleaner](https://github.com/TMFNK/Enterprise-SLM-Data-Cleaner):
 > client-specific convention files, an append-only audit trail with manual
 > review queue, air-gapped container delivery, CI quality gates, and a
-> swappable (also European) base model. Details one section down.
+> swappable (also European) base model. Details in Section 9.
 
 Fine-tune a small language model (SLM) on 100% synthetic data to clean messy SAP-style
 master data, and run the whole thing locally on a Mac. No client data, no cloud,
@@ -18,7 +18,7 @@ What does it accomplish? It takes a dirty master-data record (vendor, customer,
 material, cost center, GL account) and normalizes it to a clean and documented
 output. That means trimmed text and fixed casing, ISO country and currency
 codes mappings, controlled legal-form, unit and status codes, and canonical VAT, IBAN,
-phone, date and amount formats. Missing values alwaysbecome `null`.
+phone, date and amount formats. Missing values always become `null`.
 
 ```jsonc
 // in
@@ -32,38 +32,7 @@ phone, date and amount formats. Missing values alwaysbecome `null`.
   "confidence": 1.0, "changes": ["country: 'Germany' -> 'DE'", ...] }
 ```
 
----
-
-## The enterprise version
-
-This repo is the DEMO version: one laptop in the afternoon, and you can watch the whole
-idea work end-to-end. For production use there is a bigger sibling,
-[Enterprise-SLM-Data-Cleaner](https://github.com/TMFNK/Enterprise-SLM-Data-Cleaner),
-which takes the same proven core and adds the layers that a company actually needs
-before trusting an AI with its master data:
-
-- **Client-specific conventions as files.** The house standard lives in an
-  editable YAML spec per client. A data steward changes the rules, nobody
-  rewrites software.
-- **An append-only audit trail.** Every cleaning decision is recorded: input,
-  output, every single change, confidence, and the exact version (hash) of
-  both the model weights and the convention file. Uncertain records go to a
-  manual review queue, never silently accepted.
-- **Air-gapped delivery.** Everything ships as one container that runs with
-  its network stack removed (`--network none`) and refuses to start if the
-  model weights do not match the fingerprint pinned in version control.
-- **A quality gate on every change.** A pinned adversarial test suite (is
-  "Bavaria" wrongly "corrected" to a country? is "mbH" recognized as GmbH?)
-  blocks any code or convention change that alters documented behavior.
-- **A swappable base model.** The stack is model-agnostic! Companies that
-  prefer not to run a Chinese base model can use a European one (Ministral-8B
-  or Mistral Nemo from Mistral AI in France, Teuken-7B from Fraunhofer,
-  EuroLLM from an EU project) or a US model under MIT license, with the same
-  pipeline and the same eval gate.
-
----
-
-## Why
+## 1. The problem
 
 If you work with sensitive master data, and especially under GDPR / DSGVO,
 sending records to a third-party cloud LLM is often not allowed in the first
@@ -92,7 +61,13 @@ To be clear, this is not a replacement for your data stack. It is a small, local
 private model that works alongside it and picks up the edge cases the rules miss,
 without ever exposing your data to anyone.
 
-## Für deutsche Unternehmen, kurz gefasst
+## 2. What it does
+
+**Comes in:** a dirty master-data record (vendor, customer, material, cost center or GL account), with the mess described above.
+
+**Goes out:** the same record cleaned to a documented standard, a list of every change made, and a confidence score, with a rule check on every answer. See the example at the top of this page.
+
+### Für deutsche Unternehmen, kurz gefasst
 
 Sensible Stammdaten an eine ausländische Cloud-KI zu senden, ist unter der DSGVO
 oft keine Option. Dieses Projekt zeigt einen anderen Weg: ein kleines, quelloffenes
@@ -112,9 +87,37 @@ europäisch, z. B. Ministral-8B oder Mistral Nemo von Mistral AI).
 
 Beratung und Umsetzung: [mbitai.com](https://www.mbitai.com).
 
----
+## 3. How it works
 
-## The main idea
+### A 30-second glossary explanation
+
+| Term                  | Plain meaning                                                                                          |
+| --------------------- | ------------------------------------------------------------------------------------------------------ |
+| LLM / model           | The "brain": a file that turns input text into output text.                                            |
+| Base / instruct model | We use `Qwen3-0.6B`, a small model (0.6 billion parameters).                                            |
+| Parameters            | The model's internal numbers. "0.6B" means 600 million of them. More usually means smarter but bigger. |
+| Fine-tune             | Teach an existing model your specific task by showing it examples.                                     |
+| LoRA                  | A cheap, fast way to fine-tune that runs on a laptop.                                                  |
+| Adapter               | The small file LoRA produces: what the model learned, kept separate from the model.                    |
+| Synthetic data        | Fake but realistic examples we generate ourselves, no real data.                                       |
+| Algorithm             | Our rule-based answer key that says what the clean output should be.                                   |
+| Loss                  | The number training prints. Roughly "how wrong the model still is". Down is good.                      |
+| Quantization          | Shrinking a model by storing its numbers at lower precision, so it needs less memory.                  |
+| GGUF                  | The file format that lets `llama.cpp` run a model efficiently.                                          |
+| MLX                   | Apple's tool that does the training on your Mac's chip.                                                |
+| llama.cpp             | The tool that runs (serves) the finished model.                                                        |
+| Server                | A program that loads the model once, keeps it in memory, and answers requests.                         |
+| Hugging Face          | The site models are downloaded from. Think "GitHub for models".                                        |
+| Terminal              | The black text app where you type commands (see Step 0).                                               |
+| SLM | Small language model: an AI model that reads and writes text, like the ones behind chatbots, but small enough to run on one ordinary computer. |
+| Knowledge distillation | A "teacher" that already knows the task (here, the rule-based algorithm) produces examples, and a smaller "student" model learns from them. |
+| Air-gapped | Running with no network connection at all, so nothing can leave the machine. |
+| DSGVO / GDPR | The European data-protection law. |
+| SAP master data | The core records a company keeps in its SAP system, such as suppliers, customers and materials. |
+| Grammar-constrained output | The model is only allowed to write text that fits the record's JSON layout, so the output is always well-formed. |
+| AGPL-3.0 | An open-source license: anyone who runs a modified version as a network service must share their changes. Commercial licensing is available. |
+
+### The main idea
 
 Most data cleaning is written by hand: someone codes a rule for every case they
 can think of. This project turns that around. We write the rules once, use them to
@@ -150,9 +153,142 @@ Want the reasoning behind these choices? See [docs/concepts.md](docs/concepts.md
 for a deeper explainer: why a tiny model is enough, base vs instruct models, what
 LoRA actually changes, quantization, and how to read a learning curve.
 
----
+### The rulebook, and why use a model at all
 
-# Complete beginner's guide
+The convention is defined in code in [`convention_spec.py`](convention_spec.py).
+Its `normalize_record()` function is a deterministic algorithm: it computes the
+correct clean output from any messy input. That one function gets us three things
+for free:
+
+1. Unlimited perfect labels. The generator corrupts a clean record, then labels it
+   with the algorithm, so there is no expensive "teacher" model needed to build the
+   dataset.
+2. A ground truth for eval. We score the model against the same algorithm.
+3. A safety net at runtime. If the model's output fails validation, we fall back
+   to the algorithm.
+
+So why use an LLM at all when we have the rules? Because the algorithm only covers
+the rules we wrote. The model learns those rules and, on top of that, generalizes
+to messiness the rules do not explicitly cover, like novel typos, unseen aliases
+and fuzzy matches, and it does the whole record in one pass. The eval measures
+exactly how much it adds beyond the rules.
+
+### What fine-tuning does
+
+The model starts as a general instruct model that can hold a conversation about
+anything. Fine-tuning shows it thousands of messy-to-clean pairs and gently nudges
+its numbers until it reliably produces the clean version for this one task. LoRA
+makes that cheap: instead of changing all 600 million parameters, it trains a small
+set of add-on numbers and leaves the rest frozen. The model is not memorising the
+examples. It is learning the pattern, which is why it can clean records it never
+saw during training.
+
+### Model details
+
+The default preset is **Qwen3-0.6B** (instruct), LoRA fine-tuned with Apple MLX,
+exported to GGUF and served by [llama.cpp](https://github.com/ggml-org/llama.cpp).
+It runs in about 1 GB on an 8 GB Mac. The output is grammar-constrained to the
+record's JSON schema, so it is always valid JSON.
+
+#### Swapping models
+
+The pipeline supports other small models via `MODEL_PRESET`. Run `make clean`
+before switching so adapters and GGUF files from the previous model are not reused:
+
+```bash
+make list-models        # show available model presets
+make MODEL_PRESET=minicpm5-1b clean model data train fuse gguf serve eval
+```
+
+Or set it once for the session:
+
+```bash
+export MODEL_PRESET=minicpm5-1b
+make clean model data train fuse gguf serve eval
+```
+
+| Preset         | Base model   | Size | GGUF repo (baseline)                               | Quant    | ALIAS                  |
+| -------------- | ------------ | ---- | -------------------------------------------------- | -------- | ---------------------- |
+| `qwen3-0.6b`   | Qwen3-0.6B   | 0.6B | `Qwen/Qwen3-0.6B-GGUF`                             | `Q8_0`   | `qwen3-0.6b-cleaner`   |
+| `qwen3.5-0.8b` | Qwen3.5-0.8B | 0.8B | `unsloth/Qwen3.5-0.8B-GGUF` (community)           | `Q8_0`   | `qwen3.5-0.8b-cleaner` |
+| `minicpm5-1b`  | MiniCPM5-1B  | 1B   | `openbmb/MiniCPM5-1B-GGUF`                         | `Q4_K_M` | `minicpm5-1b-cleaner`  |
+
+Each preset sets `MODEL`, `GGUF_HF`, `GGUF_QUANT`, and `ALIAS` together. Override
+any individually, for example:
+
+```bash
+make model train fuse gguf MODEL_PRESET=minicpm5-1b GGUF_QUANT=Q8_0
+```
+
+Each architecture must be supported by MLX and llama.cpp. Qwen, Gemma, Phi,
+Llama-family, SmolLM, and MiniCPM are supported today.
+
+For the why behind all of this (tiny models, base vs instruct, LoRA, quantization,
+grammar-constrained decoding), see [docs/concepts.md](docs/concepts.md).
+
+## 4. What this teaches you
+
+The lesson here is what fine-tuning changes, where the training examples come from, and why you measure before you train.
+
+- **Fine-tuning changes the model, a prompt does not.** A prompt tells a general model what you want each time it runs. Fine-tuning shows a small model thousands of messy-to-clean examples until the standard is built in, including for spellings nobody wrote a rule for.
+- **Rules can teach a model.** When a rule can produce the correct answer, it can mass-produce perfect practice examples. That is knowledge distillation: a rule-based "teacher" trains a smaller "student" model. It only works because the answer key is exact.
+- **A score means nothing without a "before".** "My model scores 85%" tells you nothing until you know what the untrained model scored. The tutorial makes you measure both.
+
+## 5. Results
+
+**No before-and-after model scores are committed in this repo.** The tutorial is built so you produce them yourself: the untrained model's score in the "before" step and your fine-tuned model's score in the "after" step. The only numbers shown on this page are a self-check, listed here.
+
+| Check | Records | Valid JSON | Exact record | Field accuracy |
+| ----- | ------- | ---------- | ------------ | -------------- |
+| Rule-based answer key scored against itself (`make sanity`) | 100 | 100.0% | 100.0% | 100.0% |
+
+This is example output printed in the tutorial, not a saved report. Regenerate it with `make data` then `make sanity`. It is not a test of the AI. The rule-based algorithm is scored against answers that it produced itself, so 100% only confirms the training exercises have correct solutions.
+
+### How to read your eval numbers
+
+`make eval` prints three numbers:
+
+- valid JSON: how often the output was parseable JSON at all. Because we constrain
+  the model to the record's schema, this stays at 100%.
+- field accuracy: the share of individual fields that match the correct answer.
+  This is the main number to watch.
+- exact record: how often every field in a record is right at the same time. It is
+  stricter, so it always sits below field accuracy.
+
+A good result is your fine-tuned model scoring well above the untrained baseline
+from Step 6, and landing close to the rule-based algorithm on the cases the rules
+cover. Do not expect a flat 100%. The real value is that the model also handles the
+messy long tail the rules never anticipated.
+
+## 6. Where it fails
+
+Read this section together with Section 5.
+
+- **The AI's accuracy is not measured here.** No score for the untrained or the fine-tuned model is committed, so this page makes no claim about how much better the fine-tuned model is. Do not read the 100% self-check as a model score.
+- **The self-check is true by construction.** The rule-based answer key is scored against its own answers (see Section 5).
+- **The test records are synthetic and come from the same generator as the training records.** A good score shows the model learned this generator's kind of mess. It does not show how it handles the mess in your real data, which is untested here.
+- **Some statements are expectations, not recorded measurements.** The "about 1 GB on an 8 GB Mac" figure, the "30 to 45 minutes" for the whole tutorial, and the download sizes are stated in this repo's text, and no timing log or result is committed for them.
+- **This is a demo, not a production system.** There is no audit trail, review queue, sealed container or CI quality gate here. Those are in the [Enterprise version](https://github.com/TMFNK/Enterprise-SLM-Data-Cleaner).
+- **One fixed standard.** The cleaning convention is written in code (`convention_spec.py`). Changing it for another client means editing code in this demo.
+- **The model is small.** It has 0.6 billion parameters (a measure of model size). It is meant to work alongside your existing rules and pipelines and pick up edge cases, not to replace them, and it can still be wrong.
+- **Limited hardware support.** It needs a Mac with Apple Silicon. An Intel Mac will not work for training, because it relies on Apple MLX.
+- **The default base model comes from Alibaba (Qwen).** The weights are open (Apache-2.0) and run offline, but some buyers prefer a European or US base model. The pipeline supports swapping (see Section 3).
+- **Roadmap items are not built.** Duplicate detection, golden-record merge and mapping arbitrary nested JSON are listed as future work.
+
+## 7. Try it yourself
+
+**What you need.** A Mac with Apple Silicon and 8 GB of memory, about 5 GB of free disk space, and an internet connection for the one-time downloads. The tutorial text estimates 30 to 45 minutes, which is not a recorded measurement.
+
+**Quick check, no model needed.** This generates the synthetic data and runs the self-check from Section 5:
+
+```bash
+make data
+make sanity
+```
+
+Everything below is the full step-by-step guide.
+
+### Complete beginner's guide
 
 Never trained a model before? This walks you through every step. You do not need
 to understand machine learning to follow it. Just copy the commands. The whole
@@ -163,7 +299,7 @@ Each step below tells you three things: what to type, what the command actually
 does, and what you should see when it worked. If a step goes wrong, check the
 [Troubleshooting](#troubleshooting) list at the end before retrying.
 
-### What you need first
+#### What you need first
 
 - A Mac with Apple Silicon (M1/M2/M3/M4, anything from 2020 on). 8 GB RAM is enough.
 - About 5 GB of free disk space, plus an internet connection for the one-time downloads.
@@ -174,30 +310,7 @@ choose "About This Mac", and look at the Chip line. "Apple M1" or later means yo
 are good. If it says "Intel", the training step will not work, because it relies
 on Apple's MLX framework.
 
-### A 30-second glossary explanation
-
-| Term                  | Plain meaning                                                                                          |
-| --------------------- | ------------------------------------------------------------------------------------------------------ |
-| LLM / model           | The "brain": a file that turns input text into output text.                                            |
-| Base / instruct model | We use`Qwen3-0.6B`, a small model (0.6 billion parameters).                                            |
-| Parameters            | The model's internal numbers. "0.6B" means 600 million of them. More usually means smarter but bigger. |
-| Fine-tune             | Teach an existing model your specific task by showing it examples.                                     |
-| LoRA                  | A cheap, fast way to fine-tune that runs on a laptop.                                                  |
-| Adapter               | The small file LoRA produces: what the model learned, kept separate from the model.                    |
-| Synthetic data        | Fake but realistic examples we generate ourselves, no real data.                                       |
-| Algorithm             | Our rule-based answer key that says what the clean output should be.                                   |
-| Loss                  | The number training prints. Roughly "how wrong the model still is". Down is good.                      |
-| Quantization          | Shrinking a model by storing its numbers at lower precision, so it needs less memory.                  |
-| GGUF                  | The file format that lets`llama.cpp` run a model efficiently.                                          |
-| MLX                   | Apple's tool that does the training on your Mac's chip.                                                |
-| llama.cpp             | The tool that runs (serves) the finished model.                                                        |
-| Server                | A program that loads the model once, keeps it in memory, and answers requests.                         |
-| Hugging Face          | The site models are downloaded from. Think "GitHub for models".                                        |
-| Terminal              | The black text app where you type commands (see Step 0).                                               |
-
----
-
-## Step 0. Open the Terminal
+#### Step 0. Open the Terminal
 
 Press `Cmd + Space`, type Terminal, press Enter. A window opens where you type
 commands. For every step below, paste the command and press Enter. When a command
@@ -213,7 +326,7 @@ them run.
 > That is normal. Leave it running and open a second Terminal window (`Cmd + N`)
 > for the next command. Steps 6 and 9 tell you when.
 
-## Step 1. Install the basic tools (one time)
+#### Step 1. Install the basic tools (one time)
 
 First install Homebrew, the Mac software installer. Skip this if you already have
 it. Paste this and follow its prompts:
@@ -239,7 +352,7 @@ downloads the project, and llama.cpp runs the finished model. To check it worked
 run `brew --version` and `git --version`. Each should print a version number
 instead of "command not found".
 
-## Step 2. Get this project
+#### Step 2. Get this project
 
 ```bash
 git clone https://github.com/TMFNK/Local-SLM-Data-Cleaner.git
@@ -261,7 +374,7 @@ make help
 `make` command so you never have to type the long versions by hand. `make help`
 lists them all with the step numbers used in this guide.
 
-## Step 3. Install the Python pieces
+#### Step 3. Install the Python pieces
 
 ```bash
 make setup
@@ -275,7 +388,7 @@ already satisfied" are fine; they mean a library was already there. The step
 succeeded when it ends with `>> Done. Next: make model` and no red `ERROR` lines
 above it.
 
-## Step 4. Download the model, fresh
+#### Step 4. Download the model, fresh
 
 ```bash
 make model
@@ -291,7 +404,7 @@ make up its "brain". They land in a hidden cache folder
 the file directly. A progress bar runs while it downloads, and the step is done
 when it prints `model ready`.
 
-## Step 5. Make the training data
+#### Step 5. Make the training data
 
 ```bash
 make data
@@ -346,7 +459,7 @@ This is not the model being tested (there is no model involved yet). It is a
 self-consistency check: the answer key agrees with itself, so the exercises we
 are about to train on have correct solutions.
 
-## Step 6. Measure the model BEFORE training
+#### Step 6. Measure the model BEFORE training
 
 This shows how the untrained model does, which is what lets you prove training
 helped later.
@@ -391,7 +504,7 @@ Write down the "field accuracy" number. That is your before. Then go back to the
 first Terminal and press `Ctrl + C` to stop the server, which frees memory for
 training.
 
-## Step 7. Fine-tune the model
+#### Step 7. Fine-tune the model
 
 ```bash
 make train
@@ -420,7 +533,7 @@ The result, `adapters/`, is small (a few MB). It is not a new model; it is a
 compact "diff" of what changed, sitting on top of the unchanged base model. The
 next step merges the two.
 
-## Step 8. Package your model into a runnable file
+#### Step 8. Package your model into a runnable file
 
 ```bash
 make fuse
@@ -449,7 +562,7 @@ quantization from the glossary: storing the model's numbers with less precision
 to halve the size, at a quality cost too small to matter here. When both commands
 have finished you can see the files with `ls *.gguf`.
 
-## Step 9. Measure the model AFTER training
+#### Step 9. Measure the model AFTER training
 
 In your first Terminal, serve your fine-tuned model. It keeps running:
 
@@ -473,9 +586,9 @@ them is your fine-tune paying off.
 
 The same 100 held-out test records are used, so the comparison is fair: same
 questions, same scoring, different model. See "How to read your eval numbers"
-below for what each of the three numbers means and what counts as a good result.
+in Section 5 for what each of the three numbers means and what counts as a good result.
 
-## Step 10. Clean a record for real
+#### Step 10. Clean a record for real
 
 With the server still running:
 
@@ -496,9 +609,7 @@ the same way, one JSON record in, one cleaned JSON record out, with the
 rule-based algorithm double-checking every answer. That runtime logic lives in
 [`clean.py`](clean.py) and it is deliberately short.
 
----
-
-## Troubleshooting
+#### Troubleshooting
 
 - `command not found: make`, `brew` or `git`: redo Step 1 (`brew install ...`).
 - `command not found: mlx_lm...`: run `make setup` again.
@@ -518,54 +629,6 @@ rule-based algorithm double-checking every answer. That runtime logic lives in
   `cd Local-SLM-Data-Cleaner`, and continue from the step you were on. Finished
   steps do not need to be redone; downloads and generated files are still there.
 
----
-
-# How it works
-
-The convention is defined in code in [`convention_spec.py`](convention_spec.py).
-Its `normalize_record()` function is a deterministic algorithm: it computes the
-correct clean output from any messy input. That one function gets us three things
-for free:
-
-1. Unlimited perfect labels. The generator corrupts a clean record, then labels it
-   with the algorithm, so there is no expensive "teacher" model needed to build the
-   dataset.
-2. A ground truth for eval. We score the model against the same algorithm.
-3. A safety net at runtime. If the model's output fails validation, we fall back
-   to the algorithm.
-
-So why use an LLM at all when we have the rules? Because the algorithm only covers
-the rules we wrote. The model learns those rules and, on top of that, generalizes
-to messiness the rules do not explicitly cover, like novel typos, unseen aliases
-and fuzzy matches, and it does the whole record in one pass. The eval measures
-exactly how much it adds beyond the rules.
-
-### What fine-tuning does
-
-The model starts as a general instruct model that can hold a conversation about
-anything. Fine-tuning shows it thousands of messy-to-clean pairs and gently nudges
-its numbers until it reliably produces the clean version for this one task. LoRA
-makes that cheap: instead of changing all 600 million parameters, it trains a small
-set of add-on numbers and leaves the rest frozen. The model is not memorising the
-examples. It is learning the pattern, which is why it can clean records it never
-saw during training.
-
-### How to read your eval numbers
-
-`make eval` prints three numbers:
-
-- valid JSON: how often the output was parseable JSON at all. Because we constrain
-  the model to the record's schema, this stays at 100%.
-- field accuracy: the share of individual fields that match the correct answer.
-  This is the main number to watch.
-- exact record: how often every field in a record is right at the same time. It is
-  stricter, so it always sits below field accuracy.
-
-A good result is your fine-tuned model scoring well above the untrained baseline
-from Step 6, and landing close to the rule-based algorithm on the cases the rules
-cover. Do not expect a flat 100%. The real value is that the model also handles the
-messy long tail the rules never anticipated.
-
 ### Project layout
 
 ```text
@@ -577,66 +640,64 @@ clean.py             v1 runtime: model -> validate -> algorithm safety net
 Makefile             every step above, as `make <command>`
 ```
 
-### Model details
+## 8. Privacy and cost
 
-The default preset is **Qwen3-0.6B** (instruct), LoRA fine-tuned with Apple MLX,
-exported to GGUF and served by [llama.cpp](https://github.com/ggml-org/llama.cpp).
-It runs in about 1 GB on an 8 GB Mac. The output is grammar-constrained to the
-record's JSON schema, so it is always valid JSON.
+- **No real data is used.** Training data is 100% synthetic: every name, IBAN and VAT number is invented.
+- **Your records stay on your machine.** There is no cloud service and no third-party API in the loop, and the model runs offline once installed. The internet is needed only for the one-time downloads of software and the base model.
+- **No per-use cost.** No token bills and no subscription. The running cost is electricity, plus the hardware you already own: a Mac with Apple Silicon and 8 GB of memory.
+- **Licenses.** The Qwen base model is Apache-2.0. This project is AGPL-3.0.
 
-#### Swapping models
+## 9. Links
 
-The pipeline supports other small models via `MODEL_PRESET`. Run `make clean`
-before switching so adapters and GGUF files from the previous model are not reused:
+- Repo: [TMFNK/Local-SLM-Data-Cleaner](https://github.com/TMFNK/Local-SLM-Data-Cleaner)
+- Production version: [TMFNK/Enterprise-SLM-Data-Cleaner](https://github.com/TMFNK/Enterprise-SLM-Data-Cleaner)
+- Sibling demo, the port for NVIDIA GPUs on Linux: [TMFNK/Local-SLM-Data-Cleaner-CUDA](https://github.com/TMFNK/Local-SLM-Data-Cleaner-CUDA)
+- Concepts explainer: [docs/concepts.md](docs/concepts.md)
 
-```bash
-make list-models        # show available model presets
-make MODEL_PRESET=minicpm5-1b clean model data train fuse gguf serve eval
-```
+### The enterprise version
 
-Or set it once for the session:
+This repo is the DEMO version: one laptop in the afternoon, and you can watch the whole
+idea work end-to-end. For production use there is a bigger sibling,
+[Enterprise-SLM-Data-Cleaner](https://github.com/TMFNK/Enterprise-SLM-Data-Cleaner),
+which takes the same proven core and adds the layers that a company actually needs
+before trusting an AI with its master data:
 
-```bash
-export MODEL_PRESET=minicpm5-1b
-make clean model data train fuse gguf serve eval
-```
+- **Client-specific conventions as files.** The house standard lives in an
+  editable YAML spec per client. A data steward changes the rules, nobody
+  rewrites software.
+- **An append-only audit trail.** Every cleaning decision is recorded: input,
+  output, every single change, confidence, and the exact version (hash) of
+  both the model weights and the convention file. Uncertain records go to a
+  manual review queue, never silently accepted.
+- **Air-gapped delivery.** Everything ships as one container that runs with
+  its network stack removed (`--network none`) and refuses to start if the
+  model weights do not match the fingerprint pinned in version control.
+- **A quality gate on every change.** A pinned adversarial test suite (is
+  "Bavaria" wrongly "corrected" to a country? is "mbH" recognized as GmbH?)
+  blocks any code or convention change that alters documented behavior.
+- **A swappable base model.** The stack is model-agnostic! Companies that
+  prefer not to run a Chinese base model can use a European one (Ministral-8B
+  or Mistral Nemo from Mistral AI in France, Teuken-7B from Fraunhofer,
+  EuroLLM from an EU project) or a US model under MIT license, with the same
+  pipeline and the same eval gate.
 
-| Preset         | Base model   | Size | GGUF repo (baseline)                               | Quant    | ALIAS                  |
-| -------------- | ------------ | ---- | -------------------------------------------------- | -------- | ---------------------- |
-| `qwen3-0.6b`   | Qwen3-0.6B   | 0.6B | `Qwen/Qwen3-0.6B-GGUF`                             | `Q8_0`   | `qwen3-0.6b-cleaner`   |
-| `qwen3.5-0.8b` | Qwen3.5-0.8B | 0.8B | `unsloth/Qwen3.5-0.8B-GGUF` (community)           | `Q8_0`   | `qwen3.5-0.8b-cleaner` |
-| `minicpm5-1b`  | MiniCPM5-1B  | 1B   | `openbmb/MiniCPM5-1B-GGUF`                         | `Q4_K_M` | `minicpm5-1b-cleaner`  |
-
-Each preset sets `MODEL`, `GGUF_HF`, `GGUF_QUANT`, and `ALIAS` together. Override
-any individually, for example:
-
-```bash
-make model train fuse gguf MODEL_PRESET=minicpm5-1b GGUF_QUANT=Q8_0
-```
-
-Each architecture must be supported by MLX and llama.cpp. Qwen, Gemma, Phi,
-Llama-family, SmolLM, and MiniCPM are supported today.
-
-For the why behind all of this (tiny models, base vs instruct, LoRA, quantization,
-grammar-constrained decoding), see [docs/concepts.md](docs/concepts.md).
-
-## Roadmap
+### Roadmap
 
 - normalize a record to the convention (this repo).
 - duplicate detection and golden-record merge.
 - map arbitrary messy nested JSON onto the target schema.
 
-## About
+### About
 
 Built by [mbitai](https://www.mbitai.com), freelance data and AI engineering for
 German businesses, with a focus on practical, privacy-first machine learning that
 runs where your data already lives. This repo is part of that portfolio and a
 worked example: local, tiny, open, and GDPR-friendly by design.
 
-## License
+### License
 
 AGPL-3.0 (see [LICENSE](LICENSE)). All sample data is synthetic and invented.
 
 SAP is a registered trademark of SAP SE. This project is not affiliated with or approved by SAP SE; SAP names appear as descriptive references only. See NOTICE.
 
-For commercial licensing without AGPL obligations, or help applying this to your own master data, contact [www.mbitai.com](https://www.mbitai.com).
+For commercial licensing without AGPL obligations, or help applying this to your own master data, email info@mbitai.com.
