@@ -13,3 +13,13 @@ venv/
 
 # os
 .DS_Store
+
+# Cline / agent scratch
+.cline/
+.cursor/
+cursorbot
+cline.json
+clinebot/
+.claude/
+.codex/
+.opencode/
